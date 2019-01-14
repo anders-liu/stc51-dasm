@@ -1,8 +1,26 @@
-<html>
-    <head>
-        <title>STC51反汇编</title>
-    </head>
-    <body>
-        <h1>STC51反汇编</h1>
-    </body>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8">
+    <title>STC51反汇编</title>
+    <link href="style.css" rel="stylesheet">
+</head>
+
+<body>
+    <h1>STC51反汇编</h1>
+    <section>
+        <div>
+            <label for="hex_input">打开hex文件：</label>
+            <input id="hex_input" type="file" accept=".hex">
+        </div>
+        <p id="msg"></p>
+    </section>
+    <section id="view_container">
+        <div id="hex_view" class="code"></div>
+        <div id="bin_view" class="code"></div>
+        <div id="asm_view" class="code"></div>
+    </section>
+    <script src="ui.js"></script>
+</body>
+
 </html>

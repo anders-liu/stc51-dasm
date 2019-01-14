@@ -1,0 +1,32 @@
+.code {
+    font-family: 'Courier New', Courier, monospace;
+}
+
+td.text_header {
+    background: #EEEEEE;
+    text-align: right;
+}
+
+td.hex_start {
+    background: #FFFFCC;
+}
+
+td.hex_count {
+    background: #CCFFCC;
+}
+
+td.hex_addr {
+    background: #CCCCFF;
+}
+
+td.hex_type {
+    background: #FFCCCC;
+}
+
+td.hex_data {
+    background: #CCFFFF;
+}
+
+td.hex_cs {
+    background: #CCCCCC;
+}
