@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>STC51反汇编</title>
+    <link href="style.css" rel="stylesheet">
 </head>
 
 <body>
@@ -12,13 +13,12 @@
             <label for="hex_input">打开hex文件：</label>
             <input id="hex_input" type="file" accept=".hex">
         </div>
-        <p id="worker_msg"></p>
+        <p id="msg"></p>
     </section>
-    <nav>
-        <ol id="nav_list"></ol>
-    </nav>
-    <section>
-        <div id="viewer"></div>
+    <section id="view_container">
+        <div id="hex_view" class="code"></div>
+        <div id="bin_view" class="code"></div>
+        <div id="asm_view" class="code"></div>
     </section>
     <script src="ui.js"></script>
 </body>
