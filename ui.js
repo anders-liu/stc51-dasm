@@ -174,6 +174,7 @@
             } else {
                 let td_ln_txt = _d.createElement("td");
                 td_ln_txt.colSpan = 6;
+                td_ln_txt.innerText = v.text;
                 tr.appendChild(td_ln_txt);
             }
 
