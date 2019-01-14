@@ -36,7 +36,7 @@
                 return;
             }
 
-            const data_lines = lines.filter(v => v.type == 0).sort((a, b) => a - b);
+            const data_lines = lines.filter(v => v.type == 0).sort((a, b) => a.address - b.address);
             const byte_arr = create_byte_array(data_lines);
             render_bin_view(byte_arr);
         }
