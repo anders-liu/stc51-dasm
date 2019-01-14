@@ -203,9 +203,6 @@
         header.innerText = "二进制数据";
         el_bv.appendChild(header);
 
-        const cols = 16;
-        const rows = Math.ceil(byte_arr.length / cols);
-
         let table = _d.createElement("table");
         table.className = "code";
 
@@ -216,6 +213,8 @@
         let td_header_header = _d.createElement("td");
         tr_header.appendChild(td_header_header);
 
+        const cols = 16;
+
         for (let c = 0; c < cols; c++) {
             let td_header = _d.createElement("td");
             td_header.className = "text_header";
@@ -225,27 +224,46 @@
 
         tbody.appendChild(tr_header);
 
-        let arr_i = 0;
-        for (let r = 0; r < rows; r++) {
-            let tr_data = _d.createElement("tr");
+        let tr_cur = null;
+        for (let ai = 0; ai < byte_arr.length; ai++) {
+            if (ai % cols == 0) {
+                tr_cur = _d.createElement("tr");
+                tbody.appendChild(tr_cur);
 
-            let td_header = _d.createElement("td");
-            td_header.className = "text_header";
-            td_header.innerText = format_hex(r * cols, 4);
-            tr_data.appendChild(td_header);
+                if (byte_arr[ai].is_gap) {
+                    let ni = ai;
+                    while (byte_arr[++ni].is_gap);
+                    let gap_len = ni - ai;
+                    if (gap_len >= cols) {
+                        ni = ni - ni % cols;
+                        let td_header = _d.createElement("td");
+                        td_header.className = "text_header";
+                        td_header.innerText = format_bin_table_header(ai, ni);
+                        tr_cur.appendChild(td_header);
 
-            for (let c = 0; c < cols; c++) {
-                const cur_byte = byte_arr[arr_i++];
-
-                let td_data = _d.createElement("td");
-                if (arr_i <= byte_arr.length) {
-                    td_data.className = cur_byte.is_gap ? "text_header" : "byte_data";
-                    td_data.innerText = format_hex(cur_byte.data, 2);
+                        for (let i = 0; i < cols; i++) {
+                            let td_gap = _d.createElement("td");
+                            td_gap.className = "text_header";
+                            if (i == 0) {
+                                td_gap.innerText = "...";
+                            }
+                            tr_cur.appendChild(td_gap);
+                        }
+                        ai = ni - 1;
+                        continue;
+                    }
                 }
-                tr_data.appendChild(td_data);
+
+                let td_header = _d.createElement("td");
+                td_header.className = "text_header";
+                td_header.innerText = format_bin_table_header(ai, ai + cols);
+                tr_cur.appendChild(td_header);
             }
 
-            tbody.appendChild(tr_data);
+            let td_data = _d.createElement("td");
+            td_data.className = byte_arr[ai].is_gap ? "text_header" : "byte_data";
+            if (!byte_arr[ai].is_gap) td_data.innerText = format_hex(byte_arr[ai].data, 2);
+            tr_cur.appendChild(td_data);
         }
 
         table.appendChild(tbody);
@@ -276,6 +294,10 @@
         }
 
         return arr;
+    }
+
+    function format_bin_table_header(start, end) {
+        return format_hex(start, 4) + " - " + format_hex(end - 1, 4);
     }
 
     function format_hex(n, len, suffix) {
