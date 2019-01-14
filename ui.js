@@ -32,9 +32,13 @@
             const lines = parse_hex(r.result);
             render_hex_view(lines);
 
-            if (lines.filter(v => v.error != null)) {
+            if (lines.filter(v => v.error).length > 0) {
                 return;
             }
+
+            const data_lines = lines.filter(v => v.type == 0).sort((a, b) => a - b);
+            const byte_arr = create_byte_array(data_lines);
+            render_bin_view(byte_arr);
         }
         r.readAsText(f);
     }
@@ -130,9 +134,15 @@
     }
 
     function render_hex_view(hex_lines) {
+        let header = _d.createElement("h2");
+        header.innerText = "hex文件内容";
+        el_hv.appendChild(header);
+
         let table = _d.createElement("table");
+        table.className = "code";
+
         let tbody = _d.createElement("tbody");
-        const rows = hex_lines.map((v, i) => {
+        hex_lines.map((v, i) => {
             let tr = _d.createElement("tr");
 
             let td_ln_no = _d.createElement("td");
@@ -186,6 +196,97 @@
         });
         table.appendChild(tbody);
         el_hv.appendChild(table);
+    }
+
+    function render_bin_view(byte_arr) {
+        let header = _d.createElement("h2");
+        header.innerText = "二进制数据";
+        el_bv.appendChild(header);
+
+        const cols = 16;
+        const rows = Math.ceil(byte_arr.length / cols);
+
+        let table = _d.createElement("table");
+        table.className = "code";
+
+        let tbody = _d.createElement("tbody");
+
+        let tr_header = _d.createElement("tr");
+
+        let td_header_header = _d.createElement("td");
+        tr_header.appendChild(td_header_header);
+
+        for (let c = 0; c < cols; c++) {
+            let td_header = _d.createElement("td");
+            td_header.className = "text_header";
+            td_header.innerText = "+" + format_hex(c, 2);
+            tr_header.appendChild(td_header);
+        }
+
+        tbody.appendChild(tr_header);
+
+        let arr_i = 0;
+        for (let r = 0; r < rows; r++) {
+            let tr_data = _d.createElement("tr");
+
+            let td_header = _d.createElement("td");
+            td_header.className = "text_header";
+            td_header.innerText = format_hex(r * cols, 4);
+            tr_data.appendChild(td_header);
+
+            for (let c = 0; c < cols; c++) {
+                const cur_byte = byte_arr[arr_i++];
+
+                let td_data = _d.createElement("td");
+                if (arr_i <= byte_arr.length) {
+                    td_data.className = cur_byte.is_gap ? "text_header" : "byte_data";
+                    td_data.innerText = format_hex(cur_byte.data, 2);
+                }
+                tr_data.appendChild(td_data);
+            }
+
+            tbody.appendChild(tr_data);
+        }
+
+        table.appendChild(tbody);
+        el_bv.appendChild(table);
+    }
+
+    function create_byte_array(data_lines) {
+        let arr = [];
+
+        for (let i = 0; i < data_lines.length; i++) {
+            const cur_ln = data_lines[i];
+            for (let b of cur_ln.data) {
+                arr.push({
+                    data: b,
+                    hex_line: cur_ln
+                });
+            }
+
+            if (i < data_lines.length - 1) {
+                const next_ln = data_lines[i + 1];
+                for (let gi = cur_ln.address + cur_ln.count; gi < next_ln.address; gi++) {
+                    arr.push({
+                        data: 0xFF,
+                        is_gap: true
+                    });
+                }
+            }
+        }
+
+        return arr;
+    }
+
+    function format_hex(n, len, suffix) {
+        let str = n.toString(16).toUpperCase();
+        if (str.length < len) {
+            str = "0".repeat(len - str.length) + str;
+        }
+        if (suffix) {
+            str = str + "h";
+        }
+        return str;
     }
 
     /*= 初始化 =*/

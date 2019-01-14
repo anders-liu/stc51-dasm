@@ -30,3 +30,18 @@ td.hex_data {
 td.hex_cs {
     background: #CCCCCC;
 }
+
+td.byte_data {
+    text-align: right;
+}
+
+#view_container {
+    display: grid;
+    grid-template-columns: auto auto auto;
+}
+
+#hex_view {}
+
+#bin_view {}
+
+#asm_view {}
