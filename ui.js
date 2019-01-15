@@ -357,7 +357,7 @@
     }
 
     function format_bin_table_header(start, end) {
-        return format_hex(start, 4) + " - " + format_hex(end - 1, 4);
+        return format_hex(start, 4) + "-" + format_hex(end - 1, 4);
     }
 
     function format_hex(n, len, suffix) {
