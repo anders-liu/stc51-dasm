@@ -410,6 +410,14 @@
         };
     }
 
+    function create_nbit_oprand(data) {
+        return {
+            type: "NBIT",
+            data,
+            str: "/" + format_bit_data(data)
+        };
+    }
+
     function create_imm_oprand(data) {
         return {
             type: "IMM",
@@ -446,6 +454,19 @@
 
     function dasm_op_x_imm(ci) {
         ci.oprand2 = create_imm_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_dir_imm(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_imm_oprand(ci.bytes[2].data);
+    }
+
+    function dasm_op_x_bit(ci) {
+        ci.oprand2 = create_bit_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_x_nbit(ci) {
+        ci.oprand2 = create_nbit_oprand(ci.bytes[1].data);
     }
 
     function create_opcode_metadata() {
@@ -869,115 +890,100 @@
         }, {
             /* 0x42 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
         }, {
             /* 0x43 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
         }, {
             /* 0x44 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x45 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
         }, {
             /* 0x46 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
         }, {
             /* 0x47 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
         }, {
             /* 0x48 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
         }, {
             /* 0x49 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
         }, {
             /* 0x4A */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
         }, {
             /* 0x4B */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
         }, {
             /* 0x4C */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
         }, {
             /* 0x4D */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
         }, {
             /* 0x4E */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
         }, {
             /* 0x4F */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
         }, {
             /* 0x50 */
             opcode: "JNC",
@@ -993,115 +999,100 @@
         }, {
             /* 0x52 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
         }, {
             /* 0x53 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
         }, {
             /* 0x54 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x55 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
         }, {
             /* 0x56 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
         }, {
             /* 0x57 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
         }, {
             /* 0x58 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
         }, {
             /* 0x59 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
         }, {
             /* 0x5A */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
         }, {
             /* 0x5B */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
         }, {
             /* 0x5C */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
         }, {
             /* 0x5D */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
         }, {
             /* 0x5E */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
         }, {
             /* 0x5F */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
         }, {
             /* 0x60 */
             opcode: "JZ",
@@ -1117,115 +1108,100 @@
         }, {
             /* 0x62 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
         }, {
             /* 0x63 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
         }, {
             /* 0x64 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x65 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
         }, {
             /* 0x66 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
         }, {
             /* 0x67 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
         }, {
             /* 0x68 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
         }, {
             /* 0x69 */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
         }, {
             /* 0x6A */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
         }, {
             /* 0x6B */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
         }, {
             /* 0x6C */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
         }, {
             /* 0x6D */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
         }, {
             /* 0x6E */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
         }, {
             /* 0x6F */
             opcode: "XRL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_xrl
+            un: "XRL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
         }, {
             /* 0x70 */
             opcode: "JNZ",
@@ -1241,11 +1217,10 @@
         }, {
             /* 0x72 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
         }, {
             /* 0x73 */
             opcode: "JMP",
@@ -1365,11 +1340,10 @@
         }, {
             /* 0x82 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
         }, {
             /* 0x83 */
             opcode: "MOVC",
@@ -1591,11 +1565,10 @@
         }, {
             /* 0xA0 */
             opcode: "ORL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_orl
+            un: "ORL_C_NBIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_nbit
         }, {
             /* 0xA1 */
             opcode: "AJMP",
@@ -1715,11 +1688,10 @@
         }, {
             /* 0xB0 */
             opcode: "ANL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_anl
+            un: "ANL_C_NBIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_nbit
         }, {
             /* 0xB1 */
             opcode: "ACALL",
