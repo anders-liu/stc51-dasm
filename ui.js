@@ -356,6 +356,10 @@
         return "#" + format_hex(data, 3, true);
     }
 
+    function format_imm2_data(data) {
+        return "#" + format_hex(data, 5, true);
+    }
+
     function format_bin_table_header(start, end) {
         return format_hex(start, 4) + "-" + format_hex(end - 1, 4);
     }
@@ -421,8 +425,18 @@
     function create_imm_oprand(data) {
         return {
             type: "IMM",
+            len: 1,
             data,
             str: format_imm_data(data)
+        };
+    }
+
+    function create_imm2_oprand(byte1, byte2) {
+        return {
+            type: "IMM",
+            len: 2,
+            data: (byte1 << 8) | byte2,
+            str: format_imm2_data(data)
         };
     }
 
@@ -456,6 +470,10 @@
         ci.oprand2 = create_imm_oprand(ci.bytes[1].data);
     }
 
+    function dasm_op_x_imm2(ci) {
+        ci.oprand2 = create_imm2_oprand(ci.bytes[1].data, ci.bytes[2].data);
+    }
+
     function dasm_op_x_rel(ci) {
         ci.oprand2 = create_rel_oprand(ci.bytes[1].data, ci);
     }
@@ -463,6 +481,11 @@
     function dasm_op_dir_imm(ci) {
         ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
         ci.oprand2 = create_imm_oprand(ci.bytes[2].data);
+    }
+
+    function dasm_op_dir_dir(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_dir_oprand(ci.bytes[2].data);
     }
 
     function dasm_op_dir_rel(ci) {
@@ -1253,99 +1276,86 @@
         }, {
             /* 0x74 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x75 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
         }, {
             /* 0x76 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R0_IMM",
+            bytes: 2,
+            oprand1: "@R0",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x77 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R1_IMM",
+            bytes: 2,
+            oprand1: "@R1",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x78 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R0_IMM",
+            bytes: 2,
+            oprand1: "R0",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x79 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R1_IMM",
+            bytes: 2,
+            oprand1: "R1",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7A */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R2_IMM",
+            bytes: 2,
+            oprand1: "R2",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7B */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R3_IMM",
+            bytes: 2,
+            oprand1: "R3",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7C */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R4_IMM",
+            bytes: 2,
+            oprand1: "R4",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7D */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R5_IMM",
+            bytes: 2,
+            oprand1: "R5",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7E */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R6_IMM",
+            bytes: 2,
+            oprand1: "R6",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x7F */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R7_IMM",
+            bytes: 2,
+            oprand1: "R7",
+            dasm: dasm_op_x_imm
         }, {
             /* 0x80 */
             opcode: "SJMP",
@@ -1381,99 +1391,86 @@
         }, {
             /* 0x85 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_DIR",
+            bytes: 3,
+            dasm: dasm_op_dir_dir
         }, {
             /* 0x86 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_AT_R0",
+            bytes: 2,
+            oprand2: "@R0",
+            dasm: dasm_op_dir
         }, {
             /* 0x87 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_AT_R1",
+            bytes: 2,
+            oprand2: "@R1",
+            dasm: dasm_op_dir
         }, {
             /* 0x88 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R0",
+            bytes: 2,
+            oprand2: "R0",
+            dasm: dasm_op_dir
         }, {
             /* 0x89 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R1",
+            bytes: 2,
+            oprand2: "R1",
+            dasm: dasm_op_dir
         }, {
             /* 0x8A */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R2",
+            bytes: 2,
+            oprand2: "R2",
+            dasm: dasm_op_dir
         }, {
             /* 0x8B */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R3",
+            bytes: 2,
+            oprand2: "R3",
+            dasm: dasm_op_dir
         }, {
             /* 0x8C */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R4",
+            bytes: 2,
+            oprand2: "R4",
+            dasm: dasm_op_dir
         }, {
             /* 0x8D */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R5",
+            bytes: 2,
+            oprand2: "R5",
+            dasm: dasm_op_dir
         }, {
             /* 0x8E */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R6",
+            bytes: 2,
+            oprand2: "R6",
+            dasm: dasm_op_dir
         }, {
             /* 0x8F */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_R7",
+            bytes: 2,
+            oprand2: "R7",
+            dasm: dasm_op_dir
         }, {
             /* 0x90 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DPTR_IMM2",
+            bytes: 3,
+            oprand1: "DPTR",
+            dasm: dasm_op_x_imm2
         }, {
             /* 0x91 */
             opcode: "ACALL",
@@ -1483,11 +1480,10 @@
         }, {
             /* 0x92 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_BIT_C",
+            bytes: 2,
+            oprand2: "C",
+            dasm: dasm_op_bit
         }, {
             /* 0x93 */
             opcode: "MOVC",
@@ -1596,11 +1592,10 @@
         }, {
             /* 0xA2 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
         }, {
             /* 0xA3 */
             opcode: "INC",
@@ -1621,83 +1616,73 @@
         }, {
             /* 0xA6 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R0_DIR",
+            bytes: 2,
+            oprand1: "@R0",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xA7 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R1_DIR",
+            bytes: 2,
+            oprand1: "@R1",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xA8 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R0_DIR",
+            bytes: 2,
+            oprand1: "R0",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xA9 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R1_DIR",
+            bytes: 2,
+            oprand1: "R1",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAA */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R2_DIR",
+            bytes: 2,
+            oprand1: "R2",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAB */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R3_DIR",
+            bytes: 2,
+            oprand1: "R3",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAC */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R4_DIR",
+            bytes: 2,
+            oprand1: "R4",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAD */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R5_DIR",
+            bytes: 2,
+            oprand1: "R5",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAE */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R6_DIR",
+            bytes: 2,
+            oprand1: "R6",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xAF */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R7_DIR",
+            bytes: 2,
+            oprand1: "R7",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xB0 */
             opcode: "ANL",
@@ -2056,91 +2041,80 @@
         }, {
             /* 0xE5 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
         }, {
             /* 0xE6 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
         }, {
             /* 0xE7 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
         }, {
             /* 0xE8 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
         }, {
             /* 0xE9 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
         }, {
             /* 0xEA */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
         }, {
             /* 0xEB */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
         }, {
             /* 0xEC */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
         }, {
             /* 0xED */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
         }, {
             /* 0xEE */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
         }, {
             /* 0xEF */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_A_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
         }, {
             /* 0xF0 */
             opcode: "MOVX",
@@ -2177,91 +2151,80 @@
         }, {
             /* 0xF5 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
         }, {
             /* 0xF6 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R0_A",
+            bytes: 1,
+            oprand1: "@R0",
+            oprand2: "A"
         }, {
             /* 0xF7 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_AT_R1_A",
+            bytes: 1,
+            oprand1: "@R1",
+            oprand2: "A"
         }, {
             /* 0xF8 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R0_A",
+            bytes: 1,
+            oprand1: "R0",
+            oprand2: "A"
         }, {
             /* 0xF9 */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R1_A",
+            bytes: 1,
+            oprand1: "R1",
+            oprand2: "A"
         }, {
             /* 0xFA */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R2_A",
+            bytes: 1,
+            oprand1: "R2",
+            oprand2: "A"
         }, {
             /* 0xFB */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R3_A",
+            bytes: 1,
+            oprand1: "R3",
+            oprand2: "A"
         }, {
             /* 0xFC */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R4_A",
+            bytes: 1,
+            oprand1: "R4",
+            oprand2: "A"
         }, {
             /* 0xFD */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R5_A",
+            bytes: 1,
+            oprand1: "R5",
+            oprand2: "A"
         }, {
             /* 0xFE */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R6_A",
+            bytes: 1,
+            oprand1: "R6",
+            oprand2: "A"
         }, {
             /* 0xFF */
             opcode: "MOV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mov
+            un: "MOV_R7_A",
+            bytes: 1,
+            oprand1: "R7",
+            oprand2: "A"
         }];
     }
 
