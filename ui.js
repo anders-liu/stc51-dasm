@@ -469,6 +469,10 @@
         ci.oprand2 = create_nbit_oprand(ci.bytes[1].data);
     }
 
+    function dasm_op_bit(ci) {
+        ci.oprand1 = create_bit_oprand(ci.bytes[1].data);
+    }
+
     function create_opcode_metadata() {
         _w.opcode_metadata = [{
             /* 0x00 */
@@ -1224,11 +1228,9 @@
         }, {
             /* 0x73 */
             opcode: "JMP",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_jmp
+            un: "JMP",
+            bytes: 1,
+            oprand1: "@A+DPTR"
         }, {
             /* 0x74 */
             opcode: "MOV",
@@ -1355,11 +1357,9 @@
         }, {
             /* 0x84 */
             opcode: "DIV",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_div
+            un: "DIV",
+            bytes: 1,
+            oprand1: "AB"
         }, {
             /* 0x85 */
             opcode: "MOV",
@@ -1592,19 +1592,14 @@
         }, {
             /* 0xA4 */
             opcode: "MUL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_mul
+            un: "MUL",
+            bytes: 1,
+            oprand1: "AB"
         }, {
             /* 0xA5 */
-            opcode: "UNKNOWN",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_unknown
+            opcode: "<UNKNOWN>",
+            un: "<UNKNOWN>",
+            bytes: 1
         }, {
             /* 0xA6 */
             opcode: "MOV",
@@ -1701,19 +1696,15 @@
         }, {
             /* 0xB2 */
             opcode: "CPL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_cpl
+            un: "CPL_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
         }, {
             /* 0xB3 */
             opcode: "CPL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_cpl
+            un: "CPL_C",
+            bytes: 1,
+            oprand1: "C"
         }, {
             /* 0xB4 */
             opcode: "CJNE",
@@ -1813,11 +1804,9 @@
         }, {
             /* 0xC0 */
             opcode: "PUSH",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_push
+            un: "PUSH",
+            bytes: 2,
+            dasm: dasm_op_dir
         }, {
             /* 0xC1 */
             opcode: "AJMP",
@@ -1827,27 +1816,21 @@
         }, {
             /* 0xC2 */
             opcode: "CLR",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_clr
+            un: "CLR_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
         }, {
             /* 0xC3 */
             opcode: "CLR",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_clr
+            un: "CLR_C",
+            bytes: 1,
+            oprand1: "C"
         }, {
             /* 0xC4 */
             opcode: "SWAP",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_swap
+            un: "SWAP",
+            bytes: 1,
+            oprand1: "A"
         }, {
             /* 0xC5 */
             opcode: "XCH",
@@ -1939,11 +1922,9 @@
         }, {
             /* 0xD0 */
             opcode: "POP",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_pop
+            un: "POP",
+            bytes: 2,
+            dasm: dasm_op_dir
         }, {
             /* 0xD1 */
             opcode: "ACALL",
@@ -1953,27 +1934,21 @@
         }, {
             /* 0xD2 */
             opcode: "SETB",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_setb
+            un: "SETB_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
         }, {
             /* 0xD3 */
             opcode: "SETB",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_setb
+            un: "SETB_C",
+            bytes: 1,
+            oprand1: "C"
         }, {
             /* 0xD4 */
             opcode: "DA",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_da
+            un: "DA",
+            bytes: 1,
+            oprand1: "A"
         }, {
             /* 0xD5 */
             opcode: "DJNZ",
@@ -2065,11 +2040,10 @@
         }, {
             /* 0xE0 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_A_AT_DPTR",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@DPTR"
         }, {
             /* 0xE1 */
             opcode: "AJMP",
@@ -2079,27 +2053,23 @@
         }, {
             /* 0xE2 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_A_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
         }, {
             /* 0xE3 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_A_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
         }, {
             /* 0xE4 */
             opcode: "CLR",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_clr
+            un: "CLR_A",
+            bytes: 1,
+            oprand1: "A"
         }, {
             /* 0xE5 */
             opcode: "MOV",
@@ -2191,11 +2161,10 @@
         }, {
             /* 0xF0 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_AT_DPTR_A",
+            bytes: 1,
+            oprand1: "@DPTR",
+            oprand2: "A"
         }, {
             /* 0xF1 */
             opcode: "ACALL",
@@ -2205,27 +2174,23 @@
         }, {
             /* 0xF2 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_AT_R0_A",
+            bytes: 1,
+            oprand1: "@R0",
+            oprand2: "A"
         }, {
             /* 0xF3 */
             opcode: "MOVX",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_movx
+            un: "MOVX_AT_R1_A",
+            bytes: 1,
+            oprand1: "@R1",
+            oprand2: "A"
         }, {
             /* 0xF4 */
             opcode: "CPL",
-            un: "",
-            bytes: 0,
-            oprand1: "",
-            oprand2: "",
-            dasm: dasm_cpl
+            un: "CPL_A",
+            bytes: 1,
+            oprand1: "A"
         }, {
             /* 0xF5 */
             opcode: "MOV",
