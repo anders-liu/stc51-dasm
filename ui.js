@@ -317,7 +317,7 @@
                     ci.len = 1;
                     inst_list.push(ci);
                 }
-            } else {
+            } else { /* !is_gap */
                 let ci = {
                     offset: p
                 };
@@ -393,7 +393,7 @@
         return {
             type: "ADDR",
             data: jmp_target,
-            raw_data: rel_data,
+            raw_data: data,
             str: format_code_address(jmp_target)
         };
     }
@@ -432,10 +432,11 @@
     }
 
     function create_imm2_oprand(byte1, byte2) {
+        const data = (byte1 << 8) | byte2;
         return {
             type: "IMM",
             len: 2,
-            data: (byte1 << 8) | byte2,
+            data,
             str: format_imm2_data(data)
         };
     }
@@ -1490,8 +1491,7 @@
             un: "MOVC_DPTR",
             bytes: 1,
             oprand1: "A",
-            oprand2: "@A+DPTR",
-            dasm: dasm_movc
+            oprand2: "@A+DPTR"
         }, {
             /* 0x94 */
             opcode: "SUBB",
