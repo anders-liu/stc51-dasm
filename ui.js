@@ -274,7 +274,108 @@
         el_bv.appendChild(table);
     }
 
-    function render_asm_view(asm_list) {}
+    function render_asm_view(asm_list) {
+        let header = _d.createElement("h2");
+        header.innerText = "汇编代码";
+        el_av.appendChild(header);
+
+        let table = _d.createElement("table");
+        table.className = "code";
+
+        let tbody = _d.createElement("tbody");
+
+        /* offset|bytes|opcode|oprand1|oprand2|oprand3 */
+        function create_tr_text(text) {
+            let tr = _d.createElement("tr");
+            let td_offset = _d.createElement("td");
+            tr.appendChild(td_offset);
+            let td_text = _d.createElement("td");
+            td_text.colSpan = 5;
+            td_text.innerText = text;
+            tr.appendChild(td_text);
+            return tr;
+        }
+
+        function create_tr_gap(ci) {
+            return create_tr_text("; " + ci.len + "字节空白");
+        }
+
+        function create_tr_sep(hard) {
+            let tr = _d.createElement("tr");
+            let td = _d.createElement("td");
+            td.colSpan = 6;
+            td.innerHTML = hard ? "<hr/>" : "&nbsp;";
+            tr.appendChild(td);
+            return tr;
+        }
+
+        function create_tr_asm(ci) {
+            let tr = _d.createElement("tr");
+
+            let td_offset = _d.createElement("td");
+            td_offset.innerText = format_code_address(ci.offset) + ": ";
+            tr.appendChild(td_offset);
+
+            let td_bytes = _d.createElement("td");
+            td_bytes.innerText = format_inst_bytes(ci.bytes);
+            tr.appendChild(td_bytes);
+
+            let td_opcode = _d.createElement("td");
+            td_opcode.innerText = ci.opcode;
+            tr.appendChild(td_opcode);
+
+            let td_oprand1 = _d.createElement("td");
+            if (ci.oprand1) {
+                td_oprand1.innerText = get_oprand_str(ci.oprand1);
+                if (ci.oprand2 != null) td_oprand1.innerText += ",";
+            }
+            tr.appendChild(td_oprand1);
+
+            let td_oprand2 = _d.createElement("td");
+            if (ci.oprand2) {
+                td_oprand2.innerText = get_oprand_str(ci.oprand2);
+                if (ci.oprand3 != null) td_oprand2.innerText += ",";
+            }
+            tr.appendChild(td_oprand2);
+
+            let td_oprand3 = _d.createElement("td");
+            if (ci.oprand3) td_oprand3.innerText = get_oprand_str(ci.oprand3);
+            tr.appendChild(td_oprand3);
+
+            return tr;
+        }
+
+        function get_oprand_str(oprand) {
+            return typeof oprand === "string" ? oprand : oprand.str;
+        }
+
+        function format_inst_bytes(bytes) {
+            let str = format_hex(bytes[0].data, 2);
+            for (let i = 1; i < bytes.length; i++) {
+                str += " " + format_hex(bytes[i].data, 2);
+            }
+            return str;
+        }
+
+        for (const inst of asm_list.inst_list) {
+            if (inst.is_gap) {
+                tbody.appendChild(create_tr_gap(inst));
+                tbody.appendChild(create_tr_sep(true));
+            } else if (inst.is_sep) {
+                tbody.appendChild(create_tr_sep(inst.is_hard));
+            } else {
+                tbody.appendChild(create_tr_asm(inst));
+            }
+        }
+
+        if (!asm_list.inst_list[asm_list.inst_list.length - 1].is_sep) {
+            tbody.appendChild(create_tr_sep(true));
+        }
+        tbody.appendChild(create_tr_text("END"));
+
+        table.appendChild(tbody);
+        el_av.appendChild(table);
+    }
 
     function create_byte_array(data_lines) {
         let arr = [];
@@ -324,13 +425,43 @@
                 const md = opcode_metadata[cb.data];
                 ci.opcode = md.opcode;
                 ci.bytes = [cb];
-                for (let i = 1; i <= md.bytes; i++) ci.bytes.push(byte_arr[p + i]);
+                for (let i = 1; i < md.bytes; i++) ci.bytes.push(byte_arr[p + i]);
                 if (md.oprand1) ci.oprand1 = md.oprand1;
                 if (md.oprand2) ci.oprand2 = md.oprand2;
                 if (md.dasm) md.dasm(ci);
                 inst_list.push(ci);
                 index_list[p] = ci;
                 p += ci.bytes.length - 1;
+
+                switch (ci.opcode) {
+                    case "AJMP":
+                    case "JMP":
+                    case "LJMP":
+                    case "RET":
+                    case "RETI":
+                    case "SJMP":
+                        inst_list.push({
+                            is_sep: true,
+                            is_hard: true
+                        });
+                        break;
+
+                    case "ACALL":
+                    case "CJNE":
+                    case "DJNZ":
+                    case "JB":
+                    case "JBC":
+                    case "JC":
+                    case "JNB":
+                    case "JNC":
+                    case "JNZ":
+                    case "JZ":
+                    case "LCALL":
+                        inst_list.push({
+                            is_sep: true
+                        });
+                        break;
+                }
             }
         }
 
@@ -455,6 +586,7 @@
     }
 
     function dasm_op_x_dir(ci) {
+        if (!ci.bytes[1]) debugger;
         ci.oprand2 = create_dir_oprand(ci.bytes[1].data);
     }
 

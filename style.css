@@ -2,6 +2,14 @@
     font-family: 'Courier New', Courier, monospace;
 }
 
+.code td {
+    white-space: nowrap;
+}
+
+div.view:not(:first-child) {
+    border-left: solid 2px;
+}
+
 td.text_header {
     background: #EEEEEE;
     text-align: right;
