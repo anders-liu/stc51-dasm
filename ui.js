@@ -7,6 +7,7 @@
         el_hv = _d.getElementById("hex_view");
         el_bv = _d.getElementById("bin_view");
         el_av = _d.getElementById("asm_view");
+        create_opcode_metadata();
     }
 
     function resetUI() {
@@ -39,6 +40,9 @@
             const data_lines = lines.filter(v => v.type == 0).sort((a, b) => a.address - b.address);
             const byte_arr = create_byte_array(data_lines);
             render_bin_view(byte_arr);
+
+            const asm_list = create_asm_list(byte_arr);
+            render_asm_view(asm_list);
         }
         r.readAsText(f);
     }
@@ -270,6 +274,109 @@
         el_bv.appendChild(table);
     }
 
+    function render_asm_view(asm_list) {
+        let header = _d.createElement("h2");
+        header.innerText = "汇编代码";
+        el_av.appendChild(header);
+
+        let table = _d.createElement("table");
+        table.className = "code";
+
+        let tbody = _d.createElement("tbody");
+
+        /* offset|bytes|opcode|oprand1|oprand2|oprand3 */
+        function create_tr_text(text) {
+            let tr = _d.createElement("tr");
+            let td_offset = _d.createElement("td");
+            tr.appendChild(td_offset);
+            let td_text = _d.createElement("td");
+            td_text.colSpan = 5;
+            td_text.innerText = text;
+            tr.appendChild(td_text);
+            return tr;
+        }
+
+        function create_tr_gap(ci) {
+            return create_tr_text("; " + ci.len + "字节空白");
+        }
+
+        function create_tr_sep(hard) {
+            let tr = _d.createElement("tr");
+            let td = _d.createElement("td");
+            td.colSpan = 6;
+            td.innerHTML = hard ? "<hr/>" : "&nbsp;";
+            tr.appendChild(td);
+            return tr;
+        }
+
+        function create_tr_asm(ci) {
+            let tr = _d.createElement("tr");
+
+            let td_offset = _d.createElement("td");
+            td_offset.innerText = format_code_address(ci.offset) + ": ";
+            tr.appendChild(td_offset);
+
+            let td_bytes = _d.createElement("td");
+            td_bytes.innerText = format_inst_bytes(ci.bytes);
+            tr.appendChild(td_bytes);
+
+            let td_opcode = _d.createElement("td");
+            td_opcode.innerText = ci.opcode;
+            tr.appendChild(td_opcode);
+
+            let td_oprand1 = _d.createElement("td");
+            if (ci.oprand1) {
+                td_oprand1.innerText = get_oprand_str(ci.oprand1);
+                if (ci.oprand2 != null) td_oprand1.innerText += ",";
+            }
+            tr.appendChild(td_oprand1);
+
+            let td_oprand2 = _d.createElement("td");
+            if (ci.oprand2) {
+                td_oprand2.innerText = get_oprand_str(ci.oprand2);
+                if (ci.oprand3 != null) td_oprand2.innerText += ",";
+            }
+            tr.appendChild(td_oprand2);
+
+            let td_oprand3 = _d.createElement("td");
+            if (ci.oprand3) td_oprand3.innerText = get_oprand_str(ci.oprand3);
+            tr.appendChild(td_oprand3);
+
+            return tr;
+        }
+
+        function get_oprand_str(oprand) {
+            return typeof oprand === "string" ? oprand : oprand.str;
+        }
+
+        function format_inst_bytes(bytes) {
+            let str = format_hex(bytes[0].data, 2);
+            for (let i = 1; i < bytes.length; i++) {
+                str += " " + format_hex(bytes[i].data, 2);
+            }
+            return str;
+        }
+
+        for (const inst of asm_list.inst_list) {
+            if (inst.is_gap) {
+                tbody.appendChild(create_tr_gap(inst));
+                tbody.appendChild(create_tr_sep(true));
+            } else if (inst.is_sep) {
+                tbody.appendChild(create_tr_sep(inst.is_hard));
+            } else {
+                tbody.appendChild(create_tr_asm(inst));
+            }
+        }
+
+        if (!asm_list.inst_list[asm_list.inst_list.length - 1].is_sep) {
+            tbody.appendChild(create_tr_sep(true));
+        }
+        tbody.appendChild(create_tr_text("END"));
+
+        table.appendChild(tbody);
+        el_av.appendChild(table);
+    }
+
     function create_byte_array(data_lines) {
         let arr = [];
 
@@ -286,7 +393,6 @@
                 const next_ln = data_lines[i + 1];
                 for (let gi = cur_ln.address + cur_ln.count; gi < next_ln.address; gi++) {
                     arr.push({
-                        data: 0xFF,
                         is_gap: true
                     });
                 }
@@ -296,8 +402,97 @@
         return arr;
     }
 
+    function create_asm_list(byte_arr) {
+        let inst_list = [];
+        let index_list = {};
+
+        for (let p = 0; p < byte_arr.length; p++) {
+            const cb = byte_arr[p];
+
+            if (cb.is_gap) {
+                if (p > 0 && inst_list[inst_list.length - 1].is_gap) {
+                    inst_list[inst_list.length - 1].len++;
+                } else {
+                    let ci = {};
+                    ci.is_gap = true;
+                    ci.len = 1;
+                    inst_list.push(ci);
+                }
+            } else { /* !is_gap */
+                let ci = {
+                    offset: p
+                };
+                const md = opcode_metadata[cb.data];
+                ci.opcode = md.opcode;
+                ci.bytes = [cb];
+                for (let i = 1; i < md.bytes; i++) ci.bytes.push(byte_arr[p + i]);
+                if (md.oprand1) ci.oprand1 = md.oprand1;
+                if (md.oprand2) ci.oprand2 = md.oprand2;
+                if (md.dasm) md.dasm(ci);
+                inst_list.push(ci);
+                index_list[p] = ci;
+                p += ci.bytes.length - 1;
+
+                switch (ci.opcode) {
+                    case "AJMP":
+                    case "JMP":
+                    case "LJMP":
+                    case "RET":
+                    case "RETI":
+                    case "SJMP":
+                        inst_list.push({
+                            is_sep: true,
+                            is_hard: true
+                        });
+                        break;
+
+                    case "ACALL":
+                    case "CJNE":
+                    case "DJNZ":
+                    case "JB":
+                    case "JBC":
+                    case "JC":
+                    case "JNB":
+                    case "JNC":
+                    case "JNZ":
+                    case "JZ":
+                    case "LCALL":
+                        inst_list.push({
+                            is_sep: true
+                        });
+                        break;
+                }
+            }
+        }
+
+        return {
+            inst_list,
+            index_list
+        };
+    }
+
+    function format_code_address(addr) {
+        return "CODE_" + format_hex(addr, 4);
+    }
+
+    function format_direct_data(data) {
+        return format_hex(data, 3, true);
+    }
+
+    function format_bit_data(data) {
+        return format_hex(data, 3, true);
+    }
+
+    function format_imm_data(data) {
+        return "#" + format_hex(data, 3, true);
+    }
+
+    function format_imm2_data(data) {
+        return "#" + format_hex(data, 5, true);
+    }
+
     function format_bin_table_header(start, end) {
-        return format_hex(start, 4) + " - " + format_hex(end - 1, 4);
+        return format_hex(start, 4) + "-" + format_hex(end - 1, 4);
     }
 
     function format_hex(n, len, suffix) {
@@ -309,6 +504,1860 @@
             str = str + "h";
         }
         return str;
+    }
+
+    function calculate_rel_data(data, ci) {
+        const offset = (data & 0x80) ? data - 0x100 : data;
+        return ci.offset + ci.bytes.length + offset;
+    }
+
+    function create_addr_oprand(data) {
+        return {
+            type: "ADDR",
+            data,
+            str: format_code_address(data)
+        };
+    }
+
+    function create_rel_oprand(data, ci) {
+        const jmp_target = calculate_rel_data(data, ci);
+        return {
+            type: "ADDR",
+            data: jmp_target,
+            raw_data: data,
+            str: format_code_address(jmp_target)
+        };
+    }
+
+    function create_dir_oprand(data) {
+        return {
+            type: "DIR",
+            data,
+            str: format_direct_data(data)
+        };
+    }
+
+    function create_bit_oprand(data) {
+        return {
+            type: "BIT",
+            data,
+            str: format_bit_data(data)
+        };
+    }
+
+    function create_nbit_oprand(data) {
+        return {
+            type: "NBIT",
+            data,
+            str: "/" + format_bit_data(data)
+        };
+    }
+
+    function create_imm_oprand(data) {
+        return {
+            type: "IMM",
+            len: 1,
+            data,
+            str: format_imm_data(data)
+        };
+    }
+
+    function create_imm2_oprand(byte1, byte2) {
+        const data = (byte1 << 8) | byte2;
+        return {
+            type: "IMM",
+            len: 2,
+            data,
+            str: format_imm2_data(data)
+        };
+    }
+
+    function dasm_op_abs(ci) {
+        /* a10 a9 a8 0 0001   a7 a6 a5 a4 a3 a2 a1 a0 */
+        ci.oprand1 = create_addr_oprand(((ci.bytes[0].data & 0xE0) << 3) | ci.bytes[1].data);
+    }
+
+    function dasm_op_laddr(ci) {
+        ci.oprand1 = create_addr_oprand((ci.bytes[1].data << 8) | ci.bytes[2].data);
+    }
+
+    function dasm_op_dir(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_x_dir(ci) {
+        if (!ci.bytes[1]) debugger;
+        ci.oprand2 = create_dir_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_rel(ci) {
+        ci.oprand1 = create_rel_oprand(ci.bytes[1].data, ci);
+    }
+
+    function dasm_op_bit_rel(ci) {
+        ci.oprand1 = create_bit_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_rel_oprand(ci.bytes[2].data, ci);
+    }
+
+    function dasm_op_x_imm(ci) {
+        ci.oprand2 = create_imm_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_x_imm2(ci) {
+        ci.oprand2 = create_imm2_oprand(ci.bytes[1].data, ci.bytes[2].data);
+    }
+
+    function dasm_op_x_rel(ci) {
+        ci.oprand2 = create_rel_oprand(ci.bytes[1].data, ci);
+    }
+
+    function dasm_op_dir_imm(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_imm_oprand(ci.bytes[2].data);
+    }
+
+    function dasm_op_dir_dir(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_dir_oprand(ci.bytes[2].data);
+    }
+
+    function dasm_op_dir_rel(ci) {
+        ci.oprand1 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand2 = create_rel_oprand(ci.bytes[2].data, ci);
+    }
+
+    function dasm_op_x_bit(ci) {
+        ci.oprand2 = create_bit_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_x_nbit(ci) {
+        ci.oprand2 = create_nbit_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_bit(ci) {
+        ci.oprand1 = create_bit_oprand(ci.bytes[1].data);
+    }
+
+    function dasm_op_x_imm_rel(ci) {
+        ci.oprand2 = create_imm_oprand(ci.bytes[1].data);
+        ci.oprand3 = create_rel_oprand(ci.bytes[2].data, ci);
+    }
+
+    function dasm_op_x_dir_rel(ci) {
+        ci.oprand2 = create_dir_oprand(ci.bytes[1].data);
+        ci.oprand3 = create_rel_oprand(ci.bytes[2].data, ci);
+    }
+
+    function create_opcode_metadata() {
+        _w.opcode_metadata = [{
+            /* 0x00 */
+            opcode: "NOP",
+            un: "NOP",
+            bytes: 1
+        }, {
+            /* 0x01 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE0",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x02 */
+            opcode: "LJMP",
+            un: "LJMP",
+            bytes: 3,
+            dasm: dasm_op_laddr
+        }, {
+            /* 0x03 */
+            opcode: "RR",
+            un: "RR",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x04 */
+            opcode: "INC",
+            un: "INC_A",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x05 */
+            opcode: "INC",
+            un: "INC_DIR",
+            bytes: 2,
+            dasm: dasm_op_dir
+        }, {
+            /* 0x06 */
+            opcode: "INC",
+            un: "INC_AT_R0",
+            bytes: 1,
+            oprand1: "@R0"
+        }, {
+            /* 0x07 */
+            opcode: "INC",
+            un: "INC_AT_R1",
+            bytes: 1,
+            oprand1: "@R1"
+        }, {
+            /* 0x08 */
+            opcode: "INC",
+            un: "INC_R0",
+            bytes: 1,
+            oprand1: "R0"
+        }, {
+            /* 0x09 */
+            opcode: "INC",
+            un: "INC_R1",
+            bytes: 1,
+            oprand1: "R1"
+        }, {
+            /* 0x0A */
+            opcode: "INC",
+            un: "INC_R2",
+            bytes: 1,
+            oprand1: "R2"
+        }, {
+            /* 0x0B */
+            opcode: "INC",
+            un: "INC_R3",
+            bytes: 1,
+            oprand1: "R3"
+        }, {
+            /* 0x0C */
+            opcode: "INC",
+            un: "INC_R4",
+            bytes: 1,
+            oprand1: "R4"
+        }, {
+            /* 0x0D */
+            opcode: "INC",
+            un: "INC_R5",
+            bytes: 1,
+            oprand1: "R5"
+        }, {
+            /* 0x0E */
+            opcode: "INC",
+            un: "INC_R6",
+            bytes: 1,
+            oprand1: "R6"
+        }, {
+            /* 0x0F */
+            opcode: "INC",
+            un: "INC_R7",
+            bytes: 1,
+            oprand1: "R7"
+        }, {
+            /* 0x10 */
+            opcode: "JBC",
+            un: "JBC",
+            bytes: 3,
+            dasm: dasm_op_bit_rel
+        }, {
+            /* 0x11 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE0",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x12 */
+            opcode: "LCALL",
+            un: "LCALL",
+            bytes: 3,
+            dasm: dasm_op_laddr
+        }, {
+            /* 0x13 */
+            opcode: "RRC",
+            un: "RRC",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x14 */
+            opcode: "DEC",
+            un: "DEC_A",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x15 */
+            opcode: "DEC",
+            un: "DEC_DIR",
+            bytes: 2,
+            dasm: dasm_op_dir
+        }, {
+            /* 0x16 */
+            opcode: "DEC",
+            un: "DEC_AT_R0",
+            bytes: 1,
+            oprand1: "@R0"
+        }, {
+            /* 0x17 */
+            opcode: "DEC",
+            un: "DEC_AT_R1",
+            bytes: 1,
+            oprand1: "@R1"
+        }, {
+            /* 0x18 */
+            opcode: "DEC",
+            un: "DEC_R0",
+            bytes: 1,
+            oprand1: "R0"
+        }, {
+            /* 0x19 */
+            opcode: "DEC",
+            un: "DEC_R1",
+            bytes: 1,
+            oprand1: "R1"
+        }, {
+            /* 0x1A */
+            opcode: "DEC",
+            un: "DEC_R2",
+            bytes: 1,
+            oprand1: "R2"
+        }, {
+            /* 0x1B */
+            opcode: "DEC",
+            un: "DEC_R3",
+            bytes: 1,
+            oprand1: "R3"
+        }, {
+            /* 0x1C */
+            opcode: "DEC",
+            un: "DEC_R4",
+            bytes: 1,
+            oprand1: "R4"
+        }, {
+            /* 0x1D */
+            opcode: "DEC",
+            un: "DEC_R5",
+            bytes: 1,
+            oprand1: "R5"
+        }, {
+            /* 0x1E */
+            opcode: "DEC",
+            un: "DEC_R6",
+            bytes: 1,
+            oprand1: "R6"
+        }, {
+            /* 0x1F */
+            opcode: "DEC",
+            un: "DEC_R7",
+            bytes: 1,
+            oprand1: "R7"
+        }, {
+            /* 0x20 */
+            opcode: "JB",
+            un: "JB",
+            bytes: 3,
+            dasm: dasm_op_bit_rel
+        }, {
+            /* 0x21 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE1",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x22 */
+            opcode: "RET",
+            un: "RET",
+            bytes: 1
+        }, {
+            /* 0x23 */
+            opcode: "RL",
+            un: "RL",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x24 */
+            opcode: "ADD",
+            un: "ADD_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x25 */
+            opcode: "ADD",
+            un: "ADD_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x26 */
+            opcode: "ADD",
+            un: "ADD_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x27 */
+            opcode: "ADD",
+            un: "ADD_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x28 */
+            opcode: "ADD",
+            un: "ADD_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x29 */
+            opcode: "ADD",
+            un: "ADD_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x2A */
+            opcode: "ADD",
+            un: "ADD_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x2B */
+            opcode: "ADD",
+            un: "ADD_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x2C */
+            opcode: "ADD",
+            un: "ADD_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x2D */
+            opcode: "ADD",
+            un: "ADD_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x2E */
+            opcode: "ADD",
+            un: "ADD_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x2F */
+            opcode: "ADD",
+            un: "ADD_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0x30 */
+            opcode: "JNB",
+            un: "JNB",
+            bytes: 3,
+            dasm: dasm_op_bit_rel
+        }, {
+            /* 0x31 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE1",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x32 */
+            opcode: "RETI",
+            un: "RETI",
+            bytes: 1
+        }, {
+            /* 0x33 */
+            opcode: "RLC",
+            un: "RLC",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0x34 */
+            opcode: "ADDC",
+            un: "ADDC_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x35 */
+            opcode: "ADDC",
+            un: "ADDC_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x36 */
+            opcode: "ADDC",
+            un: "ADDC_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x37 */
+            opcode: "ADDC",
+            un: "ADDC_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x38 */
+            opcode: "ADDC",
+            un: "ADDC_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x39 */
+            opcode: "ADDC",
+            un: "ADDC_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x3A */
+            opcode: "ADDC",
+            un: "ADDC_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x3B */
+            opcode: "ADDC",
+            un: "ADDC_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x3C */
+            opcode: "ADDC",
+            un: "ADDC_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x3D */
+            opcode: "ADDC",
+            un: "ADDC_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x3E */
+            opcode: "ADDC",
+            un: "ADDC_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x3F */
+            opcode: "ADDC",
+            un: "ADDC_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0x40 */
+            opcode: "JC",
+            un: "JC",
+            bytes: 2,
+            dasm: dasm_op_rel
+        }, {
+            /* 0x41 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE2",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x42 */
+            opcode: "ORL",
+            un: "ORL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x43 */
+            opcode: "ORL",
+            un: "ORL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
+        }, {
+            /* 0x44 */
+            opcode: "ORL",
+            un: "ORL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x45 */
+            opcode: "ORL",
+            un: "ORL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x46 */
+            opcode: "ORL",
+            un: "ORL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x47 */
+            opcode: "ORL",
+            un: "ORL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x48 */
+            opcode: "ORL",
+            un: "ORL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x49 */
+            opcode: "ORL",
+            un: "ORL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x4A */
+            opcode: "ORL",
+            un: "ORL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x4B */
+            opcode: "ORL",
+            un: "ORL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x4C */
+            opcode: "ORL",
+            un: "ORL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x4D */
+            opcode: "ORL",
+            un: "ORL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x4E */
+            opcode: "ORL",
+            un: "ORL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x4F */
+            opcode: "ORL",
+            un: "ORL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0x50 */
+            opcode: "JNC",
+            un: "JNC",
+            bytes: 2,
+            dasm: dasm_op_rel
+        }, {
+            /* 0x51 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE2",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x52 */
+            opcode: "ANL",
+            un: "ANL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x53 */
+            opcode: "ANL",
+            un: "ANL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
+        }, {
+            /* 0x54 */
+            opcode: "ANL",
+            un: "ANL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x55 */
+            opcode: "ANL",
+            un: "ANL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x56 */
+            opcode: "ANL",
+            un: "ANL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x57 */
+            opcode: "ANL",
+            un: "ANL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x58 */
+            opcode: "ANL",
+            un: "ANL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x59 */
+            opcode: "ANL",
+            un: "ANL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x5A */
+            opcode: "ANL",
+            un: "ANL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x5B */
+            opcode: "ANL",
+            un: "ANL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x5C */
+            opcode: "ANL",
+            un: "ANL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x5D */
+            opcode: "ANL",
+            un: "ANL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x5E */
+            opcode: "ANL",
+            un: "ANL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x5F */
+            opcode: "ANL",
+            un: "ANL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0x60 */
+            opcode: "JZ",
+            un: "JZ",
+            bytes: 2,
+            dasm: dasm_op_rel
+        }, {
+            /* 0x61 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE3",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x62 */
+            opcode: "XRL",
+            un: "XRL_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x63 */
+            opcode: "XRL",
+            un: "XRL_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
+        }, {
+            /* 0x64 */
+            opcode: "XRL",
+            un: "XRL_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x65 */
+            opcode: "XRL",
+            un: "XRL_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x66 */
+            opcode: "XRL",
+            un: "XRL_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x67 */
+            opcode: "XRL",
+            un: "XRL_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x68 */
+            opcode: "XRL",
+            un: "XRL_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x69 */
+            opcode: "XRL",
+            un: "XRL_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x6A */
+            opcode: "XRL",
+            un: "XRL_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x6B */
+            opcode: "XRL",
+            un: "XRL_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x6C */
+            opcode: "XRL",
+            un: "XRL_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x6D */
+            opcode: "XRL",
+            un: "XRL_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x6E */
+            opcode: "XRL",
+            un: "XRL_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x6F */
+            opcode: "XRL",
+            un: "XRL_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0x70 */
+            opcode: "JNZ",
+            un: "JNZ",
+            bytes: 2,
+            dasm: dasm_op_rel
+        }, {
+            /* 0x71 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE3",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x72 */
+            opcode: "ORL",
+            un: "ORL_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
+        }, {
+            /* 0x73 */
+            opcode: "JMP",
+            un: "JMP",
+            bytes: 1,
+            oprand1: "@A+DPTR"
+        }, {
+            /* 0x74 */
+            opcode: "MOV",
+            un: "MOV_A_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x75 */
+            opcode: "MOV",
+            un: "MOV_DIR_IMM",
+            bytes: 3,
+            dasm: dasm_op_dir_imm
+        }, {
+            /* 0x76 */
+            opcode: "MOV",
+            un: "MOV_AT_R0_IMM",
+            bytes: 2,
+            oprand1: "@R0",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x77 */
+            opcode: "MOV",
+            un: "MOV_AT_R1_IMM",
+            bytes: 2,
+            oprand1: "@R1",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x78 */
+            opcode: "MOV",
+            un: "MOV_R0_IMM",
+            bytes: 2,
+            oprand1: "R0",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x79 */
+            opcode: "MOV",
+            un: "MOV_R1_IMM",
+            bytes: 2,
+            oprand1: "R1",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7A */
+            opcode: "MOV",
+            un: "MOV_R2_IMM",
+            bytes: 2,
+            oprand1: "R2",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7B */
+            opcode: "MOV",
+            un: "MOV_R3_IMM",
+            bytes: 2,
+            oprand1: "R3",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7C */
+            opcode: "MOV",
+            un: "MOV_R4_IMM",
+            bytes: 2,
+            oprand1: "R4",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7D */
+            opcode: "MOV",
+            un: "MOV_R5_IMM",
+            bytes: 2,
+            oprand1: "R5",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7E */
+            opcode: "MOV",
+            un: "MOV_R6_IMM",
+            bytes: 2,
+            oprand1: "R6",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x7F */
+            opcode: "MOV",
+            un: "MOV_R7_IMM",
+            bytes: 2,
+            oprand1: "R7",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x80 */
+            opcode: "SJMP",
+            un: "SJMP",
+            bytes: 2,
+            dasm: dasm_op_rel
+        }, {
+            /* 0x81 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE4",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x82 */
+            opcode: "ANL",
+            un: "ANL_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
+        }, {
+            /* 0x83 */
+            opcode: "MOVC",
+            un: "MOVC_PC",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@A+PC"
+        }, {
+            /* 0x84 */
+            opcode: "DIV",
+            un: "DIV",
+            bytes: 1,
+            oprand1: "AB"
+        }, {
+            /* 0x85 */
+            opcode: "MOV",
+            un: "MOV_DIR_DIR",
+            bytes: 3,
+            dasm: dasm_op_dir_dir
+        }, {
+            /* 0x86 */
+            opcode: "MOV",
+            un: "MOV_DIR_AT_R0",
+            bytes: 2,
+            oprand2: "@R0",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x87 */
+            opcode: "MOV",
+            un: "MOV_DIR_AT_R1",
+            bytes: 2,
+            oprand2: "@R1",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x88 */
+            opcode: "MOV",
+            un: "MOV_DIR_R0",
+            bytes: 2,
+            oprand2: "R0",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x89 */
+            opcode: "MOV",
+            un: "MOV_DIR_R1",
+            bytes: 2,
+            oprand2: "R1",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8A */
+            opcode: "MOV",
+            un: "MOV_DIR_R2",
+            bytes: 2,
+            oprand2: "R2",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8B */
+            opcode: "MOV",
+            un: "MOV_DIR_R3",
+            bytes: 2,
+            oprand2: "R3",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8C */
+            opcode: "MOV",
+            un: "MOV_DIR_R4",
+            bytes: 2,
+            oprand2: "R4",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8D */
+            opcode: "MOV",
+            un: "MOV_DIR_R5",
+            bytes: 2,
+            oprand2: "R5",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8E */
+            opcode: "MOV",
+            un: "MOV_DIR_R6",
+            bytes: 2,
+            oprand2: "R6",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x8F */
+            opcode: "MOV",
+            un: "MOV_DIR_R7",
+            bytes: 2,
+            oprand2: "R7",
+            dasm: dasm_op_dir
+        }, {
+            /* 0x90 */
+            opcode: "MOV",
+            un: "MOV_DPTR_IMM2",
+            bytes: 3,
+            oprand1: "DPTR",
+            dasm: dasm_op_x_imm2
+        }, {
+            /* 0x91 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE4",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0x92 */
+            opcode: "MOV",
+            un: "MOV_BIT_C",
+            bytes: 2,
+            oprand2: "C",
+            dasm: dasm_op_bit
+        }, {
+            /* 0x93 */
+            opcode: "MOVC",
+            un: "MOVC_DPTR",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@A+DPTR"
+        }, {
+            /* 0x94 */
+            opcode: "SUBB",
+            un: "SUBB_IMM",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_imm
+        }, {
+            /* 0x95 */
+            opcode: "SUBB",
+            un: "ASUBB_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0x96 */
+            opcode: "SUBB",
+            un: "SUBB_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0x97 */
+            opcode: "SUBB",
+            un: "SUBB_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0x98 */
+            opcode: "SUBB",
+            un: "SUBB_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0x99 */
+            opcode: "SUBB",
+            un: "SUBB_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0x9A */
+            opcode: "SUBB",
+            un: "SUBB_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0x9B */
+            opcode: "SUBB",
+            un: "SUBB_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0x9C */
+            opcode: "SUBB",
+            un: "SUBB_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0x9D */
+            opcode: "SUBB",
+            un: "SUBB_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0x9E */
+            opcode: "SUBB",
+            un: "SUBB_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0x9F */
+            opcode: "SUBB",
+            un: "SUBB_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0xA0 */
+            opcode: "ORL",
+            un: "ORL_C_NBIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_nbit
+        }, {
+            /* 0xA1 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE5",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xA2 */
+            opcode: "MOV",
+            un: "MOV_C_BIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_bit
+        }, {
+            /* 0xA3 */
+            opcode: "INC",
+            un: "INC_DPTR",
+            bytes: 1,
+            oprand1: "DPTR"
+        }, {
+            /* 0xA4 */
+            opcode: "MUL",
+            un: "MUL",
+            bytes: 1,
+            oprand1: "AB"
+        }, {
+            /* 0xA5 */
+            opcode: "<UNKNOWN>",
+            un: "<UNKNOWN>",
+            bytes: 1
+        }, {
+            /* 0xA6 */
+            opcode: "MOV",
+            un: "MOV_AT_R0_DIR",
+            bytes: 2,
+            oprand1: "@R0",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xA7 */
+            opcode: "MOV",
+            un: "MOV_AT_R1_DIR",
+            bytes: 2,
+            oprand1: "@R1",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xA8 */
+            opcode: "MOV",
+            un: "MOV_R0_DIR",
+            bytes: 2,
+            oprand1: "R0",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xA9 */
+            opcode: "MOV",
+            un: "MOV_R1_DIR",
+            bytes: 2,
+            oprand1: "R1",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAA */
+            opcode: "MOV",
+            un: "MOV_R2_DIR",
+            bytes: 2,
+            oprand1: "R2",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAB */
+            opcode: "MOV",
+            un: "MOV_R3_DIR",
+            bytes: 2,
+            oprand1: "R3",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAC */
+            opcode: "MOV",
+            un: "MOV_R4_DIR",
+            bytes: 2,
+            oprand1: "R4",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAD */
+            opcode: "MOV",
+            un: "MOV_R5_DIR",
+            bytes: 2,
+            oprand1: "R5",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAE */
+            opcode: "MOV",
+            un: "MOV_R6_DIR",
+            bytes: 2,
+            oprand1: "R6",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xAF */
+            opcode: "MOV",
+            un: "MOV_R7_DIR",
+            bytes: 2,
+            oprand1: "R7",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xB0 */
+            opcode: "ANL",
+            un: "ANL_C_NBIT",
+            bytes: 2,
+            oprand1: "C",
+            dasm: dasm_op_x_nbit
+        }, {
+            /* 0xB1 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE5",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xB2 */
+            opcode: "CPL",
+            un: "CPL_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
+        }, {
+            /* 0xB3 */
+            opcode: "CPL",
+            un: "CPL_C",
+            bytes: 1,
+            oprand1: "C"
+        }, {
+            /* 0xB4 */
+            opcode: "CJNE",
+            un: "CJNE_A_IMM",
+            bytes: 3,
+            oprand1: "A",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xB5 */
+            opcode: "CJNE",
+            un: "CJNE_A_DIR",
+            bytes: 3,
+            oprand1: "A",
+            dasm: dasm_op_x_dir_rel
+        }, {
+            /* 0xB6 */
+            opcode: "CJNE",
+            un: "CJNE_AT_R0_IMM",
+            bytes: 3,
+            oprand1: "@R0",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xB7 */
+            opcode: "CJNE",
+            un: "CJNE_AT_R1_IMM",
+            bytes: 3,
+            oprand1: "@R1",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xB8 */
+            opcode: "CJNE",
+            un: "CJNE_R0_IMM",
+            bytes: 3,
+            oprand1: "R0",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xB9 */
+            opcode: "CJNE",
+            un: "CJNE_R1_IMM",
+            bytes: 3,
+            oprand1: "R1",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBA */
+            opcode: "CJNE",
+            un: "CJNE_R2_IMM",
+            bytes: 3,
+            oprand1: "R2",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBB */
+            opcode: "CJNE",
+            un: "CJNE_R3_IMM",
+            bytes: 3,
+            oprand1: "R3",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBC */
+            opcode: "CJNE",
+            un: "CJNE_R4_IMM",
+            bytes: 3,
+            oprand1: "R4",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBD */
+            opcode: "CJNE",
+            un: "CJNE_R5_IMM",
+            bytes: 3,
+            oprand1: "R5",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBE */
+            opcode: "CJNE",
+            un: "CJNE_R6_IMM",
+            bytes: 3,
+            oprand1: "R6",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xBF */
+            opcode: "CJNE",
+            un: "CJNE_R7_IMM",
+            bytes: 3,
+            oprand1: "R7",
+            dasm: dasm_op_x_imm_rel
+        }, {
+            /* 0xC0 */
+            opcode: "PUSH",
+            un: "PUSH",
+            bytes: 2,
+            dasm: dasm_op_dir
+        }, {
+            /* 0xC1 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE6",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xC2 */
+            opcode: "CLR",
+            un: "CLR_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
+        }, {
+            /* 0xC3 */
+            opcode: "CLR",
+            un: "CLR_C",
+            bytes: 1,
+            oprand1: "C"
+        }, {
+            /* 0xC4 */
+            opcode: "SWAP",
+            un: "SWAP",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0xC5 */
+            opcode: "XCH",
+            un: "XCH_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xC6 */
+            opcode: "XCH",
+            un: "XCH_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0xC7 */
+            opcode: "XCH",
+            un: "XCH_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0xC8 */
+            opcode: "XCH",
+            un: "XCH_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0xC9 */
+            opcode: "XCH",
+            un: "XCH_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0xCA */
+            opcode: "XCH",
+            un: "XCH_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0xCB */
+            opcode: "XCH",
+            un: "XCH_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0xCC */
+            opcode: "XCH",
+            un: "XCH_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0xCD */
+            opcode: "XCH",
+            un: "XCH_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0xCE */
+            opcode: "XCH",
+            un: "XCH_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0xCF */
+            opcode: "XCH",
+            un: "XCH_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0xD0 */
+            opcode: "POP",
+            un: "POP",
+            bytes: 2,
+            dasm: dasm_op_dir
+        }, {
+            /* 0xD1 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE6",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xD2 */
+            opcode: "SETB",
+            un: "SETB_BIT",
+            bytes: 2,
+            dasm: dasm_op_bit
+        }, {
+            /* 0xD3 */
+            opcode: "SETB",
+            un: "SETB_C",
+            bytes: 1,
+            oprand1: "C"
+        }, {
+            /* 0xD4 */
+            opcode: "DA",
+            un: "DA",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0xD5 */
+            opcode: "DJNZ",
+            un: "DJNZ_DIR",
+            bytes: 3,
+            dasm: dasm_op_dir_rel
+        }, {
+            /* 0xD6 */
+            opcode: "XCHD",
+            un: "XCHD_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0xD7 */
+            opcode: "XCHD",
+            un: "XCHD_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0xD8 */
+            opcode: "DJNZ",
+            un: "DJNZ_R0",
+            bytes: 2,
+            oprand1: "R0",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xD9 */
+            opcode: "DJNZ",
+            un: "DJNZ_R1",
+            bytes: 2,
+            oprand1: "R1",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDA */
+            opcode: "DJNZ",
+            un: "DJNZ_R2",
+            bytes: 2,
+            oprand1: "R2",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDB */
+            opcode: "DJNZ",
+            un: "DJNZ_R3",
+            bytes: 2,
+            oprand1: "R3",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDC */
+            opcode: "DJNZ",
+            un: "DJNZ_R4",
+            bytes: 2,
+            oprand1: "R4",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDD */
+            opcode: "DJNZ",
+            un: "DJNZ_R5",
+            bytes: 2,
+            oprand1: "R5",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDE */
+            opcode: "DJNZ",
+            un: "DJNZ_R6",
+            bytes: 2,
+            oprand1: "R6",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xDF */
+            opcode: "DJNZ",
+            un: "DJNZ_R7",
+            bytes: 2,
+            oprand1: "R7",
+            dasm: dasm_op_x_rel
+        }, {
+            /* 0xE0 */
+            opcode: "MOVX",
+            un: "MOVX_A_AT_DPTR",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@DPTR"
+        }, {
+            /* 0xE1 */
+            opcode: "AJMP",
+            un: "AJMP_PAGE7",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xE2 */
+            opcode: "MOVX",
+            un: "MOVX_A_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0xE3 */
+            opcode: "MOVX",
+            un: "MOVX_A_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0xE4 */
+            opcode: "CLR",
+            un: "CLR_A",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0xE5 */
+            opcode: "MOV",
+            un: "MOV_A_DIR",
+            bytes: 2,
+            oprand1: "A",
+            dasm: dasm_op_x_dir
+        }, {
+            /* 0xE6 */
+            opcode: "MOV",
+            un: "MOV_A_AT_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R0"
+        }, {
+            /* 0xE7 */
+            opcode: "MOV",
+            un: "MOV_A_AT_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "@R1"
+        }, {
+            /* 0xE8 */
+            opcode: "MOV",
+            un: "MOV_A_R0",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R0"
+        }, {
+            /* 0xE9 */
+            opcode: "MOV",
+            un: "MOV_A_R1",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R1"
+        }, {
+            /* 0xEA */
+            opcode: "MOV",
+            un: "MOV_A_R2",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R2"
+        }, {
+            /* 0xEB */
+            opcode: "MOV",
+            un: "MOV_A_R3",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R3"
+        }, {
+            /* 0xEC */
+            opcode: "MOV",
+            un: "MOV_A_R4",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R4"
+        }, {
+            /* 0xED */
+            opcode: "MOV",
+            un: "MOV_A_R5",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R5"
+        }, {
+            /* 0xEE */
+            opcode: "MOV",
+            un: "MOV_A_R6",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R6"
+        }, {
+            /* 0xEF */
+            opcode: "MOV",
+            un: "MOV_A_R7",
+            bytes: 1,
+            oprand1: "A",
+            oprand2: "R7"
+        }, {
+            /* 0xF0 */
+            opcode: "MOVX",
+            un: "MOVX_AT_DPTR_A",
+            bytes: 1,
+            oprand1: "@DPTR",
+            oprand2: "A"
+        }, {
+            /* 0xF1 */
+            opcode: "ACALL",
+            un: "ACALL_PAGE7",
+            bytes: 2,
+            dasm: dasm_op_abs
+        }, {
+            /* 0xF2 */
+            opcode: "MOVX",
+            un: "MOVX_AT_R0_A",
+            bytes: 1,
+            oprand1: "@R0",
+            oprand2: "A"
+        }, {
+            /* 0xF3 */
+            opcode: "MOVX",
+            un: "MOVX_AT_R1_A",
+            bytes: 1,
+            oprand1: "@R1",
+            oprand2: "A"
+        }, {
+            /* 0xF4 */
+            opcode: "CPL",
+            un: "CPL_A",
+            bytes: 1,
+            oprand1: "A"
+        }, {
+            /* 0xF5 */
+            opcode: "MOV",
+            un: "MOV_DIR_A",
+            bytes: 2,
+            oprand2: "A",
+            dasm: dasm_op_dir
+        }, {
+            /* 0xF6 */
+            opcode: "MOV",
+            un: "MOV_AT_R0_A",
+            bytes: 1,
+            oprand1: "@R0",
+            oprand2: "A"
+        }, {
+            /* 0xF7 */
+            opcode: "MOV",
+            un: "MOV_AT_R1_A",
+            bytes: 1,
+            oprand1: "@R1",
+            oprand2: "A"
+        }, {
+            /* 0xF8 */
+            opcode: "MOV",
+            un: "MOV_R0_A",
+            bytes: 1,
+            oprand1: "R0",
+            oprand2: "A"
+        }, {
+            /* 0xF9 */
+            opcode: "MOV",
+            un: "MOV_R1_A",
+            bytes: 1,
+            oprand1: "R1",
+            oprand2: "A"
+        }, {
+            /* 0xFA */
+            opcode: "MOV",
+            un: "MOV_R2_A",
+            bytes: 1,
+            oprand1: "R2",
+            oprand2: "A"
+        }, {
+            /* 0xFB */
+            opcode: "MOV",
+            un: "MOV_R3_A",
+            bytes: 1,
+            oprand1: "R3",
+            oprand2: "A"
+        }, {
+            /* 0xFC */
+            opcode: "MOV",
+            un: "MOV_R4_A",
+            bytes: 1,
+            oprand1: "R4",
+            oprand2: "A"
+        }, {
+            /* 0xFD */
+            opcode: "MOV",
+            un: "MOV_R5_A",
+            bytes: 1,
+            oprand1: "R5",
+            oprand2: "A"
+        }, {
+            /* 0xFE */
+            opcode: "MOV",
+            un: "MOV_R6_A",
+            bytes: 1,
+            oprand1: "R6",
+            oprand2: "A"
+        }, {
+            /* 0xFF */
+            opcode: "MOV",
+            un: "MOV_R7_A",
+            bytes: 1,
+            oprand1: "R7",
+            oprand2: "A"
+        }];
     }
 
     /*= 初始化 =*/
