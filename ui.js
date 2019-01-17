@@ -46,6 +46,7 @@
             const asm_list = create_asm_list(byte_arr);
             apply_ref(asm_list);
             render_asm_view(asm_list);
+            render_bin_view_style(asm_list);
         };
         r.readAsText(f);
     }
@@ -266,7 +267,10 @@
 
             let td_data = _d.createElement("td");
             td_data.className = byte_arr[ai].is_gap ? "text_header" : "byte_data";
-            if (!byte_arr[ai].is_gap) td_data.innerText = format_hex(byte_arr[ai].data, 2);
+            if (!byte_arr[ai].is_gap) {
+                td_data.innerText = format_hex(byte_arr[ai].data, 2);
+                byte_arr[ai].table_cell = td_data;
+            }
             tr_cur.appendChild(td_data);
         }
 
@@ -353,14 +357,6 @@
             return tr;
         }
 
-        function get_oprand_css(oprand) {
-            return oprand.type === "ADDR" ? "asm_addr" : "asm_oprand";
-        }
-
-        function get_oprand_str(oprand) {
-            return typeof oprand === "string" ? oprand : oprand.str;
-        }
-
         function format_inst_bytes(bytes) {
             let str = format_hex(bytes[0].data, 2);
             for (let i = 1; i < bytes.length; i++) {
@@ -395,6 +391,18 @@
 
         table.appendChild(tbody);
         el_av.appendChild(table);
+    }
+
+    function render_bin_view_style(asm_list) {
+        for (let i in asm_list.index_list) {
+            const ci = asm_list.index_list[i];
+            ci.bytes[0].table_cell.className = "asm_opcode";
+            ci.bytes[0].table_cell.title = format_inst(ci);
+
+            for (let bi = 1; bi < ci.bytes.length; bi++) {
+                ci.bytes[bi].table_cell.className = "asm_oprand";
+            }
+        }
     }
 
     function create_byte_array(data_lines) {
@@ -512,6 +520,22 @@
                 }
             }
         }
+    }
+
+    function get_oprand_css(oprand) {
+        return oprand.type === "ADDR" ? "asm_addr" : "asm_oprand";
+    }
+
+    function get_oprand_str(oprand) {
+        return typeof oprand === "string" ? oprand : oprand.str;
+    }
+
+    function format_inst(ci) {
+        let str = ci.opcode;
+        if (ci.oprand1) str += " " + get_oprand_str(ci.oprand1);
+        if (ci.oprand2) str += ", " + get_oprand_str(ci.oprand2);
+        if (ci.oprand3) str += ", " + get_oprand_str(ci.oprand3);
+        return str;
     }
 
     function format_code_address(addr) {
