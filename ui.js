@@ -37,13 +37,16 @@
                 return;
             }
 
-            const data_lines = lines.filter(v => v.type == 0).sort((a, b) => a.address - b.address);
+            const data_lines = lines
+                .filter(v => v.type == 0)
+                .sort((a, b) => a.address - b.address);
             const byte_arr = create_byte_array(data_lines);
             render_bin_view(byte_arr);
 
             const asm_list = create_asm_list(byte_arr);
+            apply_ref(asm_list);
             render_asm_view(asm_list);
-        }
+        };
         r.readAsText(f);
     }
 
@@ -54,10 +57,7 @@
 
         for (const cur_ln of lines) {
             for (const ln of lines) {
-                if (cur_ln.number !== ln.number &&
-                    cur_ln.type === ln.type &&
-                    cur_ln.address >= ln.address &&
-                    cur_ln.address < ln.address + ln.count) {
+                if (cur_ln.number !== ln.number && cur_ln.type === ln.type && cur_ln.address >= ln.address && cur_ln.address < ln.address + ln.count) {
                     cur_ln.error = "E_OVERLAP";
                 }
             }
@@ -284,13 +284,16 @@
 
         let tbody = _d.createElement("tbody");
 
-        /* offset|bytes|opcode|oprand1|oprand2|oprand3 */
-        function create_tr_text(text) {
+        /* offset: bytes|opcode|oprand1|oprand2|oprand3 */
+        /* separater                                    */
+
+        function create_tr_text(text, highlight) {
             let tr = _d.createElement("tr");
-            let td_offset = _d.createElement("td");
-            tr.appendChild(td_offset);
+            let td_data = _d.createElement("td");
+            tr.appendChild(td_data);
             let td_text = _d.createElement("td");
-            td_text.colSpan = 5;
+            if (highlight) td_text.className = "asm_hl";
+            td_text.colSpan = 4;
             td_text.innerText = text;
             tr.appendChild(td_text);
             return tr;
@@ -303,7 +306,8 @@
         function create_tr_sep(hard) {
             let tr = _d.createElement("tr");
             let td = _d.createElement("td");
-            td.colSpan = 6;
+            td.className = hard ? "asm_sep_hard" : "";
+            td.colSpan = 5;
             td.innerHTML = hard ? "<hr/>" : "&nbsp;";
             tr.appendChild(td);
             return tr;
@@ -312,20 +316,20 @@
         function create_tr_asm(ci) {
             let tr = _d.createElement("tr");
 
-            let td_offset = _d.createElement("td");
-            td_offset.innerText = format_code_address(ci.offset) + ": ";
-            tr.appendChild(td_offset);
-
-            let td_bytes = _d.createElement("td");
-            td_bytes.innerText = format_inst_bytes(ci.bytes);
-            tr.appendChild(td_bytes);
+            let td_data = _d.createElement("td");
+            td_data.className = "asm_data";
+            td_data.innerText = format_hex(ci.offset, 4) +
+                ": " + format_inst_bytes(ci.bytes);
+            tr.appendChild(td_data);
 
             let td_opcode = _d.createElement("td");
+            td_opcode.className = "asm_opcode";
             td_opcode.innerText = ci.opcode;
             tr.appendChild(td_opcode);
 
             let td_oprand1 = _d.createElement("td");
             if (ci.oprand1) {
+                td_oprand1.className = get_oprand_css(ci.oprand1);
                 td_oprand1.innerText = get_oprand_str(ci.oprand1);
                 if (ci.oprand2 != null) td_oprand1.innerText += ",";
             }
@@ -333,16 +337,24 @@
 
             let td_oprand2 = _d.createElement("td");
             if (ci.oprand2) {
+                td_oprand2.className = get_oprand_css(ci.oprand2);
                 td_oprand2.innerText = get_oprand_str(ci.oprand2);
                 if (ci.oprand3 != null) td_oprand2.innerText += ",";
             }
             tr.appendChild(td_oprand2);
 
             let td_oprand3 = _d.createElement("td");
-            if (ci.oprand3) td_oprand3.innerText = get_oprand_str(ci.oprand3);
+            if (ci.oprand3) {
+                td_oprand3.className = get_oprand_css(ci.oprand3);
+                td_oprand3.innerText = get_oprand_str(ci.oprand3);
+            }
             tr.appendChild(td_oprand3);
 
             return tr;
+        }
+
+        function get_oprand_css(oprand) {
+            return oprand.type === "ADDR" ? "asm_addr" : "asm_oprand";
         }
 
         function get_oprand_str(oprand) {
@@ -357,6 +369,7 @@
             return str;
         }
 
+        let last_inst;
         for (const inst of asm_list.inst_list) {
             if (inst.is_gap) {
                 tbody.appendChild(create_tr_gap(inst));
@@ -364,8 +377,15 @@
             } else if (inst.is_sep) {
                 tbody.appendChild(create_tr_sep(inst.is_hard));
             } else {
+                if (inst.refs) {
+                    if (last_inst && !last_inst.is_sep && !last_inst.is_gap) {
+                        tbody.appendChild(create_tr_sep(false));
+                    }
+                    tbody.appendChild(create_tr_text(format_code_address(inst.offset), true));
+                }
                 tbody.appendChild(create_tr_asm(inst));
             }
+            last_inst = inst;
         }
 
         if (!asm_list.inst_list[asm_list.inst_list.length - 1].is_sep) {
@@ -469,6 +489,29 @@
             inst_list,
             index_list
         };
+    }
+
+    function apply_ref(asm_list) {
+        const inst_list = asm_list.index_list;
+        for (let i in inst_list) {
+            let ci = inst_list[i]
+            const addr =
+                (ci.oprand1 && ci.oprand1.type === "ADDR" && ci.oprand1.data) ||
+                (ci.oprand2 && ci.oprand2.type === "ADDR" && ci.oprand2.data) ||
+                (ci.oprand3 && ci.oprand3.type === "ADDR" && ci.oprand3.data);
+
+            if (addr != null) {
+                let ti = asm_list.index_list[addr];
+
+                if(!ti) {
+                    debugger;
+                } else {
+                    ti.refs = ti.refs || [];
+                    ti.refs.push(ci);
+                    ci.target = ti;
+                }
+            }
+        }
     }
 
     function format_code_address(addr) {
