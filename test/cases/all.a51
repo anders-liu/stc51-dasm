@@ -1,7 +1,7 @@
     ORG 0
 CODE_0000:
     ACALL   CODE_0000
-    ACALL   CODE_0100
+    ;ACALL   CODE_0100
     ACALL   CODE_01FF
     ACALL   CODE_0200
     ACALL   CODE_02FF
@@ -16,7 +16,7 @@ CODE_0000:
     ACALL   CODE_0700
     ACALL   CODE_07FF
 
-    ACALL   CODE_FFFF  ; 越界
+    ;ACALL   CODE_FFFF  ; 越界
 
     ADD     A, #0FFh
     ADD     A, 0FFh
@@ -45,7 +45,7 @@ CODE_0000:
     ADDC    A, R7
 
     AJMP    CODE_0000
-    AJMP    CODE_0100
+    ;AJMP    CODE_0100
     AJMP    CODE_01FF
     AJMP    CODE_0200
     AJMP    CODE_02FF
@@ -60,7 +60,7 @@ CODE_0000:
     AJMP    CODE_0700
     AJMP    CODE_07FF
 
-    AJMP    CODE_FFFF  ; 越界
+    ;AJMP    CODE_FFFF  ; 越界
 
     ANL     0FFh, A
     ANL     0FFh, #0FFh
@@ -92,9 +92,9 @@ CODE_0000:
     CJNE    R6, #0FFh, $+3
     CJNE    R7, #0FFh, $+3
 
-    CJNE    R0, #0FFh, $-5
-    CJNE    R0, #0FFh, $-200    ; 越界
-    CJNE    R0, #0FFh, $+200    ; 越界
+    CJNE    R0, #0FFh, $-3
+    ;CJNE    R0, #0FFh, $-200    ; 越界
+    ;CJNE    R0, #0FFh, $+200    ; 越界
 
     CLR     0FFh
     CLR     C
@@ -122,14 +122,14 @@ CODE_0000:
     DIV     AB
 
     DJNZ    0FFh, $+3
-    DJNZ    R0, $+3
-    DJNZ    R1, $+3
-    DJNZ    R2, $+3
-    DJNZ    R3, $+3
-    DJNZ    R4, $+3
-    DJNZ    R5, $+3
-    DJNZ    R6, $+3
-    DJNZ    R7, $+3
+    DJNZ    R0, $+4
+    DJNZ    R1, $+4
+    DJNZ    R2, $+4
+    DJNZ    R3, $+4
+    DJNZ    R4, $+4
+    DJNZ    R5, $+4
+    DJNZ    R6, $+4
+    DJNZ    R7, $
 
     INC     A
     INC     0FFh
@@ -155,11 +155,11 @@ CODE_0000:
 
     JNB     0FFh, $+3
 
-    JNC     $+3
+    JNC     $
 
-    JNZ     $+3
+    JNZ     $
 
-    JZ      $+3
+    JZ      $
 
     LCALL   CODE_FFFF
 
@@ -271,10 +271,16 @@ CODE_0000:
     RRC     A
 
     SETB    C
+
+SJMP_PREV:
     SETB    0FFh
 
-    SJMP    $+3
+SJMP_CUR:
+    SJMP    SJMP_CUR
+    SJMP    SJMP_PREV
+    SJMP    SJMP_NEXT
 
+SJMP_NEXT:
     SUBB    A, #0FFh
     SUBB    A, 0FFh
     SUBB    A, @R0
@@ -324,9 +330,9 @@ CODE_0000:
 
 ;---------------------------------------
 
-    ORG 00100h
-CODE_0100:
-    NOP
+    ;ORG 00100h
+;CODE_0100:
+    ;NOP
 
     ORG 001FFh
 CODE_01FF:
