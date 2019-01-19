@@ -31,7 +31,7 @@ td.hex_addr, td.asm_addr {
     background: #CCCCFF;
 }
 
-td.hex_type {
+td.hex_type, td.asm_err {
     background: #FFCCCC;
 }
 

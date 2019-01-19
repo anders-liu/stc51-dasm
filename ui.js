@@ -333,7 +333,7 @@
 
             let td_oprand1 = _d.createElement("td");
             if (ci.oprand1) {
-                td_oprand1.className = get_oprand_css(ci.oprand1);
+                td_oprand1.className = get_oprand_css(ci, ci.oprand1);
                 td_oprand1.innerText = get_oprand_str(ci.oprand1);
                 if (ci.oprand2 != null) td_oprand1.innerText += ",";
             }
@@ -341,7 +341,7 @@
 
             let td_oprand2 = _d.createElement("td");
             if (ci.oprand2) {
-                td_oprand2.className = get_oprand_css(ci.oprand2);
+                td_oprand2.className = get_oprand_css(ci, ci.oprand2);
                 td_oprand2.innerText = get_oprand_str(ci.oprand2);
                 if (ci.oprand3 != null) td_oprand2.innerText += ",";
             }
@@ -349,7 +349,7 @@
 
             let td_oprand3 = _d.createElement("td");
             if (ci.oprand3) {
-                td_oprand3.className = get_oprand_css(ci.oprand3);
+                td_oprand3.className = get_oprand_css(ci, ci.oprand3);
                 td_oprand3.innerText = get_oprand_str(ci.oprand3);
             }
             tr.appendChild(td_oprand3);
@@ -512,7 +512,7 @@
                 let ti = asm_list.index_list[addr];
 
                 if(!ti) {
-                    debugger;
+                    ci.target = "INVALID";
                 } else {
                     ti.refs = ti.refs || [];
                     ti.refs.push(ci);
@@ -522,8 +522,9 @@
         }
     }
 
-    function get_oprand_css(oprand) {
-        return oprand.type === "ADDR" ? "asm_addr" : "asm_oprand";
+    function get_oprand_css(ci, oprand) {
+        return ci.target === "INVALID" ? "asm_err" :
+            oprand.type === "ADDR" ? "asm_addr" : "asm_oprand";
     }
 
     function get_oprand_str(oprand) {
