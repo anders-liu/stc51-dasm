@@ -15,27 +15,31 @@ td.text_header {
     text-align: right;
 }
 
-td.hex_start {
+td.asm_data {
+    background: #EEEEEE;
+}
+
+td.hex_start, td.asm_hl {
     background: #FFFFCC;
 }
 
-td.hex_count {
+td.hex_count, td.asm_opcode {
     background: #CCFFCC;
 }
 
-td.hex_addr {
+td.hex_addr, td.asm_addr {
     background: #CCCCFF;
 }
 
-td.hex_type {
+td.hex_type, td.asm_err {
     background: #FFCCCC;
 }
 
-td.hex_data {
+td.hex_data, td.asm_oprand {
     background: #CCFFFF;
 }
 
-td.hex_cs {
+td.hex_cs, td.asm_sep_hard {
     background: #CCCCCC;
 }
 
